@@ -57,8 +57,6 @@ function Lightbox({ item, onClose }) {
   )
 }
 
-
-
 /* ---------------- User görünüşü ---------------- */
 function UserView({ sections, items }) {
   const [open, setOpen] = useState(null)
@@ -89,7 +87,7 @@ function UserView({ sections, items }) {
 }
 
 /* ---------------- Admin görünüşü ---------------- */
-function AdminView({ sections, items, reload }) {
+function AdminView({ sections, items, setItems, reload }) {
   const [current, setCurrent] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [open, setOpen] = useState(null)
@@ -149,8 +147,13 @@ function AdminView({ sections, items, reload }) {
   }
 
   const toggle = async (item) => {
-    await supabase.from('items').update({ visible: !item.visible }).eq('id', item.id)
-    reload()
+    const val = !item.visible
+    setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, visible: val } : x)))
+    const { error } = await supabase.from('items').update({ visible: val }).eq('id', item.id)
+    if (error) {
+      alert('Xəta: ' + error.message)
+      reload()
+    }
   }
 
   const remove = async (item) => {
@@ -161,8 +164,12 @@ function AdminView({ sections, items, reload }) {
   }
 
   const setAll = async (val) => {
-    await supabase.from('items').update({ visible: val }).eq('section_id', current)
-    reload()
+    setItems((prev) => prev.map((x) => (x.section_id === current ? { ...x, visible: val } : x)))
+    const { error } = await supabase.from('items').update({ visible: val }).eq('section_id', current)
+    if (error) {
+      alert('Xəta: ' + error.message)
+      reload()
+    }
   }
 
   return (
@@ -225,19 +232,23 @@ export default function App() {
       supabase.from('sections').select('*').order('created_at'),
       supabase.from('items').select('*').order('created_at', { ascending: false }),
     ])
-    setSections(s.data || [])
-    setItems(i.data || [])
+    if (s.data) setSections(s.data)
+    if (i.data) setItems(i.data)
   }, [])
 
   useEffect(() => {
     if (!role) return
     reload()
+    const timer = setInterval(reload, 3000) // hər 3 saniyədən bir yenilə
     const ch = supabase
       .channel('live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'items' }, reload)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sections' }, reload)
       .subscribe()
-    return () => supabase.removeChannel(ch)
+    return () => {
+      clearInterval(timer)
+      supabase.removeChannel(ch)
+    }
   }, [role, reload])
 
   const logout = () => {
@@ -245,22 +256,17 @@ export default function App() {
     setRole(null)
   }
 
-  function refr() {
-  window.location.reload();
-}
-
-
   if (!role) return <Login onLogin={setRole} />
 
   return (
     <>
       <header>
         <strong>Tur Qalereyası</strong>
-        <span>{role === 'admin' ? 'Admin' : '<button onClick={refr}>Yenilə</button>'}</span>
+        <span>{role === 'admin' ? 'Admin' : 'Qonaq'}</span>
         <button onClick={logout}>Çıxış</button>
       </header>
       {role === 'admin' ? (
-        <AdminView sections={sections} items={items} reload={reload} />
+        <AdminView sections={sections} items={items} setItems={setItems} reload={reload} />
       ) : (
         <UserView sections={sections} items={items} />
       )}
