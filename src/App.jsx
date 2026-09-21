@@ -57,6 +57,8 @@ function Lightbox({ item, onClose }) {
   )
 }
 
+
+
 /* ---------------- User görünüşü ---------------- */
 function UserView({ sections, items }) {
   const [open, setOpen] = useState(null)
@@ -243,13 +245,18 @@ export default function App() {
     setRole(null)
   }
 
+  function refr() {
+  window.location.reload();
+}
+
+
   if (!role) return <Login onLogin={setRole} />
 
   return (
     <>
       <header>
         <strong>Tur Qalereyası</strong>
-        <span>{role === 'admin' ? 'Admin' : 'Qonaq'}</span>
+        <span>{role === 'admin' ? 'Admin' : '<button onClick={refr}>Yenilə</button>'}</span>
         <button onClick={logout}>Çıxış</button>
       </header>
       {role === 'admin' ? (
